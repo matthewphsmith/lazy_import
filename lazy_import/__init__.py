@@ -162,6 +162,7 @@ class LazyModule(ModuleType):
                 logger.debug("Returning lazy-callable '{}'.".format(attr))
                 return _callable
             except (AttributeError, KeyError) as err:
+                print(sys.modules)
                 logger.debug("Proceeding to load module {}, "
                              "from requested value {}"
                              .format(super(LazyModule, self)
