@@ -127,6 +127,9 @@ class LazyModule(ModuleType):
     # peak.util.imports sets __slots__ to (), but it seems pointless because
     # the base ModuleType doesn't itself set __slots__.
     def __getattribute__(self, attr):
+        if hasattr(self, '_loaded_module'):
+            return getattr(self._loaded_module, attr)
+
         logger.debug("Getting attr {} of LazyModule instance of {}"
                      .format(attr, super(LazyModule, self)
                              .__getattribute__("__name__")))
@@ -515,7 +518,8 @@ def _load_module(module):
     if not issubclass(modclass, LazyModule):
         raise TypeError("Passed module is not a LazyModule instance.")
     with _ImportLockContext():
-        parent, _, modname = module.__name__.rpartition('.')
+        full_name = module.__name__
+        parent, _, modname = full_name.rpartition('.')
         logger.debug("loading module {}".format(modname))
         # We first identify whether this is a loadable LazyModule, then we
         # strip as much of lazy_import behavior as possible (keeping it cached,
@@ -538,7 +542,11 @@ def _load_module(module):
             cached_data = _clean_lazymodule(module)
             try:
                 # Get Python to do the real import!
-                reload_module(module)
+                from importlib import import_module as _do_it
+                # reload_module(module)
+                del sys.modules[full_name]
+                loaded_module = _do_it(full_name)
+                setattr(module, '_loaded_module', loaded_module)
             except:
                 # Loading failed. We reset our lazy state.
                 logger.debug("Failed to load module {}. Resetting..."
@@ -641,8 +649,8 @@ def _clean_lazymodule(module):
     modclass = type(module)
     _clean_lazy_submod_refs(module)
 
-    modclass.__getattribute__ = ModuleType.__getattribute__
-    modclass.__setattr__ = ModuleType.__setattr__
+    # modclass.__getattribute__ = ModuleType.__getattribute__
+    # modclass.__setattr__ = ModuleType.__setattr__
     cls_attrs = {}
     for cls_attr in _CLS_ATTRS:
         try:
@@ -673,8 +681,8 @@ def _reset_lazymodule(module, cls_attrs):
 
     """
     modclass = type(module)
-    del modclass.__getattribute__
-    del modclass.__setattr__
+    # del modclass.__getattribute__
+    # del modclass.__setattr__
     try:
         del modclass._LOADING
     except AttributeError:
