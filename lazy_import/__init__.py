@@ -82,7 +82,7 @@ except ImportError:
 
 import six
 from six import raise_from
-from six.moves import reload_module
+from importlib import import_module
 # It is sometime useful to have access to the version number of a library.
 # This is usually done through the __version__ special attribute.
 # To make sure the version number is consistent between setup.py and the
@@ -98,7 +98,7 @@ import logging
 # adding a TRACE level for stack debugging
 _LAZY_TRACE = 1
 logging.addLevelName(1, "LAZY_TRACE")
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.WARNING)
 # Logs a formatted stack (takes no message or args/kwargs)
 def _lazy_trace(self):
     if self.isEnabledFor(_LAZY_TRACE):
@@ -146,7 +146,6 @@ class LazyModule(ModuleType):
                                      .__getattribute__("__name__"), attr))
                 raise AttributeError
 
-        print("ATTR: {}".format(attr))
         if not attr in ('__name__','__class__','__spec__'):
             # __name__ and __class__ yield their values from the LazyModule;
             # __spec__ causes an AttributeError. Maybe in the future it will be
@@ -165,7 +164,6 @@ class LazyModule(ModuleType):
                 logger.debug("Returning lazy-callable '{}'.".format(attr))
                 return _callable
             except (AttributeError, KeyError) as err:
-                print(sys.modules)
                 logger.debug("Proceeding to load module {}, "
                              "from requested value {}"
                              .format(super(LazyModule, self)
@@ -540,18 +538,18 @@ def _load_module(module):
                 # We've been loaded by the parent. Let's bail.
                 return
             cached_data = _clean_lazymodule(module)
+            cached_module = sys.modules.pop(full_name)
             try:
                 # Get Python to do the real import!
-                from importlib import import_module as _do_it
-                # reload_module(module)
-                del sys.modules[full_name]
-                loaded_module = _do_it(full_name)
-                setattr(modclass, '_loaded_module', loaded_module)
+                lazy_loaded_module = import_module(full_name)
+                setattr(modclass, '_loaded_module', lazy_loaded_module)
+                sys.modules[full_name] = module
             except:
                 # Loading failed. We reset our lazy state.
                 logger.debug("Failed to load module {}. Resetting..."
                              .format(modname))
                 _reset_lazymodule(module, cached_data)
+                sys.modules[full_name] = cached_module
                 raise
             else:
                 # Successful load
@@ -648,9 +646,6 @@ def _clean_lazymodule(module):
     """
     modclass = type(module)
     _clean_lazy_submod_refs(module)
-
-    # modclass.__getattribute__ = ModuleType.__getattribute__
-    # modclass.__setattr__ = ModuleType.__setattr__
     cls_attrs = {}
     for cls_attr in _CLS_ATTRS:
         try:
@@ -681,8 +676,6 @@ def _reset_lazymodule(module, cls_attrs):
 
     """
     modclass = type(module)
-    # del modclass.__getattribute__
-    # del modclass.__setattr__
     try:
         del modclass._LOADING
     except AttributeError:
