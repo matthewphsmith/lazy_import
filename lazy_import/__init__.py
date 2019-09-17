@@ -98,7 +98,7 @@ import logging
 # adding a TRACE level for stack debugging
 _LAZY_TRACE = 1
 logging.addLevelName(1, "LAZY_TRACE")
-logging.basicConfig(level=logging.WARNING)
+logging.basicConfig(level=logging.DEBUG)
 # Logs a formatted stack (takes no message or args/kwargs)
 def _lazy_trace(self):
     if self.isEnabledFor(_LAZY_TRACE):
@@ -142,6 +142,8 @@ class LazyModule(ModuleType):
                              "inspection.".format(super(LazyModule, self)
                                      .__getattribute__("__name__"), attr))
                 raise AttributeError
+
+        print("ATTR: {}".format(attr))
         if not attr in ('__name__','__class__','__spec__'):
             # __name__ and __class__ yield their values from the LazyModule;
             # __spec__ causes an AttributeError. Maybe in the future it will be
