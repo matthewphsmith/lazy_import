@@ -127,8 +127,8 @@ class LazyModule(ModuleType):
     # peak.util.imports sets __slots__ to (), but it seems pointless because
     # the base ModuleType doesn't itself set __slots__.
     def __getattribute__(self, attr):
-        if hasattr(self, '_loaded_module'):
-            return getattr(self._loaded_module, attr)
+        if hasattr(type(self), '_loaded_module'):
+            return getattr(type(self)._loaded_module, attr)
 
         logger.debug("Getting attr {} of LazyModule instance of {}"
                      .format(attr, super(LazyModule, self)
@@ -546,7 +546,7 @@ def _load_module(module):
                 # reload_module(module)
                 del sys.modules[full_name]
                 loaded_module = _do_it(full_name)
-                setattr(module, '_loaded_module', loaded_module)
+                setattr(modclass, '_loaded_module', loaded_module)
             except:
                 # Loading failed. We reset our lazy state.
                 logger.debug("Failed to load module {}. Resetting..."
