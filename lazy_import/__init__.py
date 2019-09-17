@@ -174,6 +174,8 @@ class LazyModule(ModuleType):
         return super(LazyModule, self).__getattribute__(attr)
 
     def __setattr__(self, attr, value):
+        if hasattr(type(self), '_loaded_module'):
+            return setattr(type(self)._loaded_module, attr, value)
         logger.debug("Setting attr {} to value {}, in LazyModule instance "
                      "of {}".format(attr, value, super(LazyModule, self)
                                     .__getattribute__("__name__")))
